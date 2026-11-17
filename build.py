@@ -15,7 +15,7 @@ parts = []
 def para(page, index):
     parts.append('<p>' + html.escape(clean(blocks[page-1][index])) + '</p>')
 def heading(n, title, anchor):
-    parts.append(f'<section id="{anchor}"><h2><span>{n:02}</span>{title}</h2>')
+    parts.append(f'<section id="{anchor}"><h2>{title}</h2>')
 def end(): parts.append('</section>')
 def eq(n, expression):
     parts.append(f'<div class="equation"><span class="math" data-tex="{html.escape(expression, quote=True)}">{html.escape(expression)}</span><span class="number">({n})</span></div>')
