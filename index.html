@@ -11,32 +11,20 @@
   <script defer src="script.js"></script>
 </head>
 <body>
-  <a class="skip" href="#article">Skip to article</a>
-  <div class="layout">
-    <aside class="sidebar" aria-label="Article navigation">
-      <a class="brand" href="#top">DeMo <span>AN EXPLAINER</span></a>
-      <nav aria-label="Contents">
-        <p>CONTENTS</p>
-        <a href="#abstract">Abstract</a>
-        <a href="#momentum">01 &nbsp; SGD with momentum</a>
-        <a href="#conjectures">02 &nbsp; The conjectures</a>
-        <a href="#components">03 &nbsp; Separating components</a>
-        <a href="#algorithm">04 &nbsp; The algorithm</a>
-        <a href="#conclusion">05 &nbsp; Conclusion</a>
-        <a href="#references">References</a>
-      </nav>
-      <a class="pdf-link" href="Final_DeMo.pdf">Read the original PDF <span>↗</span></a>
-    </aside>
-    <main id="article">
-      <article id="top">
-        <header>
-          <p class="eyebrow">OPTIMIZATION · EMBEDDED MACHINE LEARNING</p>
-          <h1>An Explanation of <em>Decoupled Momentum Optimization</em></h1>
-          <div class="byline"><p><strong>Kasozi Ismail</strong><br>Math Club, Horizon International School Uganda</p><a href="mailto:k.kasozi69@gmail.com">k.kasozi69@gmail.com ↗</a></div>
-          <p class="series">Part of a series exploring optimization methods in embedded machine learning</p>
-          <a class="mobile-pdf" href="Final_DeMo.pdf">Read the original PDF ↗</a>
-        </header>
-        <section id="abstract"><h2>Abstract</h2>
+  <a class="skip-link" href="#article">Skip to the article</a>
+  <main id="article">
+    <article id="top" class="essay">
+      <header class="article-header">
+        <h1>DeMo</h1>
+        <p class="subtitle">An Explanation of Decoupled Momentum Optimization</p>
+        <div class="byline">
+          <p class="author"><span>Kasozi Ismail</span>Math Club, Horizon International School Uganda</p>
+          <a class="email" href="mailto:k.kasozi69@gmail.com">k.kasozi69@gmail.com</a>
+        </div>
+        <p class="series">Part of a series exploring optimization methods in embedded machine learning</p>
+        <a class="pdf-link" href="Final_DeMo.pdf">Read the original PDF</a>
+      </header>
+      <section id="abstract"><h2>Abstract</h2>
 <p>Modern large-scale neural networks have billions to trillions of parameters. Training these models requires the use of multiple accelerators (like GPUs, TPUs) for the model to converge in a feasible amount of time. In the Distributed Data Parallelism and Fully Sharded Data Parallelism paradigms, accelerators each contain a subset of the weights and synchronise the gradients. However, this requires high-speed specialised interconnects and requires that the accelerators be physically close to each other. If the amount of gradient data that had to be shared during synchronisation could be somehow reduced, such constraints could be relaxed. Such work would allow for the training of large-scale state-of-the-art models using geographically distributed accelerators. This is exactly what the paper DeMo: Decoupled Momentum Optimisation [6] from Nous Research aims to do. What follows is an explanation of this paper, which should make it easier to understand DeMo. It’s also worth noting that the success of the discrete cosine transform (DCT) in compressing gradient size during training yields interesting potential applications in the field of embedded machine learning. Particularly, it may enable the training and inference of larger neural networks on embedded devices with lower compute.</p>
 </section>
 <section id="momentum"><h2><span>01</span>Stochastic gradient descent with momentum</h2>
@@ -98,9 +86,8 @@
 <li>Herbert Robbins and Sutton Monro. A stochastic approximation method. The Annals of Mathematical Statistics, 22(3):400–407, 1951.</li>
 <li>Gilbert Strang. Introduction to Linear Algebra. Wellesley-Cambridge Press, 6th edition, 2021.</li>
 </ol></section>
-        <footer><span>DEMO · AN EXPLAINER</span><a href="#top">Back to top ↑</a></footer>
-      </article>
-    </main>
-  </div>
+      <footer class="article-footer"><a href="#top">Back to top ↑</a></footer>
+    </article>
+  </main>
 </body>
 </html>
