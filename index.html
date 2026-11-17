@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An Explanation of Decoupled Momentum Optimization, by Kasozi Ismail.">
+  <title>An Explanation of Decoupled Momentum Optimization — Kasozi Ismail</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.1/dist/katex-swap.min.css" integrity="sha384-K1TI7Ktijrt7j4OXUE01l7B+930e+/TANYDr7BOcY1nzek+4rm/Bew0vPAFebOVV" crossorigin="anonymous">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.1/dist/katex.min.js" integrity="sha384-ycJ6GAwiS15LoUPipwJOrWTvkUHl/YqELValBwI5I4awP1EeEQJYarj+w85ntcz7" crossorigin="anonymous"></script>
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <a class="skip" href="#article">Skip to article</a>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Article navigation">
+      <a class="brand" href="#top">DeMo <span>AN EXPLAINER</span></a>
+      <nav aria-label="Contents">
+        <p>CONTENTS</p>
+        <a href="#abstract">Abstract</a>
+        <a href="#momentum">01 &nbsp; SGD with momentum</a>
+        <a href="#conjectures">02 &nbsp; The conjectures</a>
+        <a href="#components">03 &nbsp; Separating components</a>
+        <a href="#algorithm">04 &nbsp; The algorithm</a>
+        <a href="#conclusion">05 &nbsp; Conclusion</a>
+        <a href="#references">References</a>
+      </nav>
+      <a class="pdf-link" href="Final_DeMo.pdf">Read the original PDF <span>↗</span></a>
+    </aside>
+    <main id="article">
+      <article id="top">
+        <header>
+          <p class="eyebrow">OPTIMIZATION · EMBEDDED MACHINE LEARNING</p>
+          <h1>An Explanation of <em>Decoupled Momentum Optimization</em></h1>
+          <div class="byline"><p><strong>Kasozi Ismail</strong><br>Math Club, Horizon International School Uganda</p><a href="mailto:k.kasozi69@gmail.com">k.kasozi69@gmail.com ↗</a></div>
+          <p class="series">Part of a series exploring optimization methods in embedded machine learning</p>
+          <a class="mobile-pdf" href="Final_DeMo.pdf">Read the original PDF ↗</a>
+        </header>
+        <section id="abstract"><h2>Abstract</h2>
+<p>Modern large-scale neural networks have billions to trillions of parameters. Training these models requires the use of multiple accelerators (like GPUs, TPUs) for the model to converge in a feasible amount of time. In the Distributed Data Parallelism and Fully Sharded Data Parallelism paradigms, accelerators each contain a subset of the weights and synchronise the gradients. However, this requires high-speed specialised interconnects and requires that the accelerators be physically close to each other. If the amount of gradient data that had to be shared during synchronisation could be somehow reduced, such constraints could be relaxed. Such work would allow for the training of large-scale state-of-the-art models using geographically distributed accelerators. This is exactly what the paper DeMo: Decoupled Momentum Optimisation [6] from Nous Research aims to do. What follows is an explanation of this paper, which should make it easier to understand DeMo. It’s also worth noting that the success of the discrete cosine transform (DCT) in compressing gradient size during training yields interesting potential applications in the field of embedded machine learning. Particularly, it may enable the training and inference of larger neural networks on embedded devices with lower compute.</p>
+</section>
+<section id="momentum"><h2><span>01</span>Stochastic gradient descent with momentum</h2>
+<p>Before we talk about the technicalities and the conjectures upon which DeMo is built, I will first explain the nature of optimisation that DeMo seeks to improve. During the iterative optimisation of an objective function, computing gradients for large-scale datasets all at once is computationally prohibitive. A solution to this would be to sample batches of data from the dataset and run gradient descent on them. Every batch of data is chosen at random, and we slowly build a stochastic (random) approximation of the actual gradient (that would have to be computed on the actual dataset). This approach to training, called Stochastic Gradient Descent (SGD), significantly lowers the computational burden and hastens the iteration rate. SGD traces back to stochastic approximation methods [7] that introduced the foundational stochastic approximation method that SGD builds on</p>
+<p>The true gradient is approximated by a gradient at a single sample:</p>
+<div class="equation"><span class="math" data-tex="\mathbf{x}_{t+1}:=\mathbf{x}_t-\eta\nabla\ell(\mathbf{x}_t)">\mathbf{x}_{t+1}:=\mathbf{x}_t-\eta\nabla\ell(\mathbf{x}_t)</span><span class="number">(1)</span></div>
+<p>where 𝜂&gt; 0 is the learning rate. This is standard gradient descent, controlled by a learning rate 𝜂. This operation is carried out until the model converges. Since this operation is carried out on randomly selected batches of training data, the value of the objective function fluctuates wildly. The graph actually resembles the movement of a financial asset’s price or any phenomenon generated by Brownian motion. However, just like the short-term prices of most financial assets, there is momentum in the movement of the value of this objective function. By remembering the gradient update at each iteration and factoring it into the update of the next gradient step (on a different batch of data), SGD smooths out the fluctuations in the objective function and speeds up convergence. The term that &quot;remembers&quot; and speeds this up is the momentum term. Momentum-driven SGD[3] is then expressed as:</p>
+<div class="equation"><span class="math" data-tex="\Delta\mathbf{x}_t:=\alpha\Delta\mathbf{x}_{t-1}-\eta\nabla\ell(\mathbf{x}_t)">\Delta\mathbf{x}_t:=\alpha\Delta\mathbf{x}_{t-1}-\eta\nabla\ell(\mathbf{x}_t)</span><span class="number">(2)</span></div>
+<div class="equation"><span class="math" data-tex="\mathbf{x}_{t+1}:=\mathbf{x}_t+\Delta\mathbf{x}_t">\mathbf{x}_{t+1}:=\mathbf{x}_t+\Delta\mathbf{x}_t</span><span class="number">(3)</span></div>
+<p>where 𝛼∈(0, 1) is the momentum decay parameter and Δx𝑡 represents the accumulated gradient step including momentum. By incorporating the previous gradient step (and hence its direction) into our computation of the new gradient step, we effectively manage to bias, or nudge, the gradient update in the direction of the previous gradient update and maintain its directional momentum. This is what smooths out our objective function value through time. After the new gradient update (with momentum) is computed, we just change the current weights by that value. This local Stochastic Gradient Descent is carried out in every accelerator. For a modern overview of SGD and related methods in machine learning, see [2].</p>
+</section>
+<section id="conjectures"><h2><span>02</span>The unproven conjectures</h2>
+<p>Usually, the momentum tensor 𝑚 with the gradient information accumulated in it in every accelerator is shared across the entire training network to ensure that the next training step is synchronised. We already saw the limitations of such an approach. In the DeMo paradigm, after gradients are accumulated in the momentum, the momentum tensor is decomposed into its fast-moving components 𝑞∗ and its slow-moving ones 𝑠∗. 𝑞∗ is then compressed and sent across the entire network to guide training. Every accelerator maintains its own local 𝑠∗ tensor, which is guided by the global 𝑞∗ tensor that is shared across the network. In the paper, the researchers build their algorithm on three formally unproven conjectures that are supported by empirical evidence. In the following paragraphs, I will attempt to explain what these conjectures are and their implications in this work.</p>
+<p>The first conjecture states that the fast-moving components, 𝑞∗ tensor, exhibit high spatial autocorrelation and have most of their energy concentrated in a small number of principal components. This means that in the vector space that the 𝑞∗ tensor forms, similar components cluster together and evolve in the same way during optimisation. For the sake of explaining this better, let us imagine a three-dimensional 𝑞∗ tensor space. If a certain value in this space moves to the right, then other values in its neighbourhood will move in a similar direction. Therefore, the information, &quot;move to the right,&quot; can be transmitted by just one or fewer components. This compressibility allows us to lower the amount of information needed to be transmitted and makes distributed training tractable. In this example, most of the energy is concentrated in the principal components that contain the most information about directional movements. Basically, 𝑞∗ tensor is highly redundant.</p>
+<p>The second conjecture is that fast-moving momentum components show low temporal variance and should be applied to parameter updates immediately, while slow-moving components exhibit high temporal variance and benefit from temporal smoothing over longer periods. Recall that the main purpose of the 𝑞∗ tensor is to guide the independent evolution of local 𝑠∗ momentum tensors by smoothing out and keeping their movements consistent over time. With a low temporal variance, 𝑞∗ tensor evolves over time in a highly structured and consistent way. Basically, there is little noise and a lot of signal to the overall gradient update in its movements. The values at different timesteps do not jitter around wildly, something that would indicate noise or &quot;randomness&quot;. On the other hand, 𝑠∗ tensor, with its high temporal variance, evolves in a noisy and unstructured way. Such a tensor is highly noisy and unfit for use in guiding optimisation across the network. However, by leaving it behind, each accelerator’s 𝑠∗ tensor drifts differently because of its local noise. These divergences are corrected by the globally transmitted 𝑞∗ tensor. So accelerators diverge locally but converge directionally because 𝑞∗ tensor injects a shared, stable signal.</p>
+<p>The third conjecture, that slow-moving momentum components, despite their high variance, are crucial for long-term convergence and should be preserved rather than filtered out, is pretty self-explanatory at this point. The authors assume that despite the noisy nature of 𝑠∗ tensor, they’re still crucial for optimization overall and should be kept rather than thrown out.</p>
+</section>
+<section id="components"><h2><span>03</span>Separating components</h2>
+<p>This is the heart of the paper. It is the extraction of these components and the subsequent compression of the fast-moving ones that enable training with non-localised architectures. For this to happen, the principal components have to be decorrelated, separated and then extracted from the momentum during training. If the first conjecture holds true, then a Kosambi–Karhunen–Loeve Transform [5] would suffice to decorrelate these components. A full treatment [4] of this function is beyond the scope of this article. However, we will explore at a high level what this transform does.</p>
+<p>Our momentum tensor, X, can be regarded as a stochastic process in principle. What we essentially want to do is to find the components with the most variation and then rank them by how much they vary. The covariance matrix is</p>
+<div class="equation"><span class="math" data-tex="\Sigma=\operatorname{Cov}(\mathbf X)=\mathbb E\left[(\mathbf X-\mathbb E[\mathbf X])(\mathbf X-\mathbb E[\mathbf X])^T\right]">\Sigma=\operatorname{Cov}(\mathbf X)=\mathbb E\left[(\mathbf X-\mathbb E[\mathbf X])(\mathbf X-\mathbb E[\mathbf X])^T\right]</span><span class="number">(4)</span></div>
+<p>and can be used to store the values of the variation of our momentum tensor over time. The issue is, as per the first conjecture, that the momentum tensor’s components are highly correlated. If we simply ranked them by how much they vary, we may end up picking vectors that essentially have the same information (close to each other in vector space). We need to create a new vector space for our covariance matrix, where each vector is independent of the other to avoid information redundancy, before we can begin ranking them by variation.</p>
+<p>This calls for the eigen-decomposition of the covariance matrix,</p>
+<div class="equation"><span class="math" data-tex="\Sigma\mathbf v_i=\lambda_i\mathbf v_i,\qquad i=1,\ldots,d">\Sigma\mathbf v_i=\lambda_i\mathbf v_i,\qquad i=1,\ldots,d</span><span class="number">(5)</span></div>
+<p>such that we create a new orthogonal basis (a vector space where each direction is independent of the other) in which each component is uncorrelated, and can be ranked by true variation without redundancy [8]. Projecting X onto this orthogonal basis yields</p>
+<div class="equation"><span class="math" data-tex="\mathbf y_i=\mathbf v_i^\top\mathbf X,\qquad\operatorname{Var}(\mathbf y_i)=\lambda_i">\mathbf y_i=\mathbf v_i^\top\mathbf X,\qquad\operatorname{Var}(\mathbf y_i)=\lambda_i</span><span class="number">(6)</span></div>
+<p>The top-K components can then be picked, with the highest value eigenvectors representing the highest amount of variance. Higher variance means there’s more information in that vector over time. It is worth noting that for models with billions to trillions of parameters, computing a covariance matrix for X becomes infeasible. This means that the KLT cannot be used in practice.</p>
+<p>The authors of the DeMo paper decided to use the Discrete Cosine Transform [1] instead, a common data compression algorithm used in signal processing. The DCT’s approximation of the KLT will get more accurate as the spatial autocorrelation increases in the momentum tensor.</p>
+<p>The authors found out, using empirical evidence, that the DCT alone is enough to approximate the principal components. First, we treat every momentum tensor as a 𝑑-dimensional tensor, (𝑛0, 𝑛1, . . . , 𝑛𝑑−1). It is then contiguously chunked into a bunch of smaller tensors, (𝑠0, 𝑠1, . . . , 𝑠𝑑−1), where each 𝑠𝑖 divides 𝑛𝑖 evenly, ensuring that chunking introduces no padding or overlap. Information from now on will be processed chunk by chunk. To each of these chunks, we apply the DCT and attain frequency coefficients. Each chunk is examined, and the coefficients are ranked by magnitude. The top-𝑘 frequencies, per chunk, are then selected. We then get two different tensors per chunk after extracting the highest–energy components: the frequency (coefficients) tensor m̃ᶠʳᵉᵠₜ and the indices tensor m̃ᵃᵐᵖˡₜ. One is of the high magnitude frequencies themselves, and the other is of the index positions of these frequencies in the DCT-applied chunk. Basically, the information contained in the original 𝑑-dimensional chunk has been compressed down into only the highest energy elements. As in the paper, this can be summarily represented as follows for ease of reference:</p>
+<div class="equation"><span class="math" data-tex="\widetilde m_t^{\mathrm{freq}},\widetilde m_t^{\mathrm{ampl}}=p(\mathbf m_t,s,k)">\widetilde m_t^{\mathrm{freq}},\widetilde m_t^{\mathrm{ampl}}=p(\mathbf m_t,s,k)</span><span class="number">(7)</span></div>
+<p>The initial momentum tensor is then separated into contiguous chunks once more; however, the elements in these chunks are all initialised to zero. Using the index and frequency tensors that were attained for every chunk during the DCT, the high-energy elements in the frequency tensor are placed in the zero chunk tensors in the positions described by their index tensors. We need to &quot;spread out&quot; the energy of these elements across the entire zero chunk. To do that, the inverse DCT is applied on each mostly sparse chunk. We essentially reconstruct a momentum signal, but just from the high energy elements. This new tensor is our 𝑞∗ of fast-moving components to be propagated across all other GPUs.</p>
+<div class="equation"><span class="math" data-tex="\mathbf q_t^*=p^{-1}(\widetilde m_t^{\mathrm{freq}},\widetilde m_t^{\mathrm{ampl}})">\mathbf q_t^*=p^{-1}(\widetilde m_t^{\mathrm{freq}},\widetilde m_t^{\mathrm{ampl}})</span><span class="number">(8)</span></div>
+</section>
+<section id="algorithm"><h2><span>04</span>DeMo; the algorithm</h2>
+<p>Now that we have explained its inner machinations, the optimisation scheme can be explained succinctly. Let x𝑡∈R𝑑 be the parameters at iteration 𝑡, m𝑡∈R𝑑 the momentum, 𝜂&gt; 0 the learning rate, 𝛽∈(0, 1) the momentum decay, and 𝑠, 𝑘 hyperparameters for chunk size and top-𝑘 selection. Let 𝑝(·) denote the fast-component extraction operator. The first major step is to compute the gradient.</p>
+<div class="equation"><span class="math" data-tex="\widetilde{\mathbf g}_t=\nabla\ell(\mathbf x_t;\mathcal B_t)\in\mathbb R^d">\widetilde{\mathbf g}_t=\nabla\ell(\mathbf x_t;\mathcal B_t)\in\mathbb R^d</span><span class="number">(9)</span></div>
+<p>B𝑡 is the local mini-batch of data assigned to the current accelerator. No all-reduce is performed, so ˜g𝑡 is local to every accelerator. Next, ˜g𝑡 is accumulated into the local momentum tensor via:</p>
+<div class="equation"><span class="math" data-tex="\mathbf m_t\leftarrow\beta\mathbf m_t+\widetilde{\mathbf g}_t,\qquad\mathbf m_t\in\mathbb R^d">\mathbf m_t\leftarrow\beta\mathbf m_t+\widetilde{\mathbf g}_t,\qquad\mathbf m_t\in\mathbb R^d</span><span class="number">(10)</span></div>
+<p>Fast-moving components 𝑞∗ are then extracted where m𝑡 is split into contiguous chunks of size 𝑠 and the DCT is applied per chunk. Coefficients are ranked by magnitude, and the top-K frequency elements are maintained. This is the description of:</p>
+<div class="equation"><span class="math" data-tex="\mathbf q_t^*=p(\mathbf m_t,s,k)\in\mathbb R^d">\mathbf q_t^*=p(\mathbf m_t,s,k)\in\mathbb R^d</span><span class="number">(11)</span></div>
+<p>Fast momentum components are removed, leaving only slow-moving components in m𝑡+1:</p>
+<div class="equation"><span class="math" data-tex="\mathbf m_{t+1}=\mathbf m_t-\mathbf q_t^*,\qquad\mathbf m_{t+1}\in\mathbb R^d">\mathbf m_{t+1}=\mathbf m_t-\mathbf q_t^*,\qquad\mathbf m_{t+1}\in\mathbb R^d</span><span class="number">(12)</span></div>
+<p>Now comes the synchronisation of fast-moving components:</p>
+<div class="equation"><span class="math" data-tex="\mathbf Q_t=\frac1G\sum_{g=1}^{G}\mathbf q_t^{*(g)}\in\mathbb R^d">\mathbf Q_t=\frac1G\sum_{g=1}^{G}\mathbf q_t^{*(g)}\in\mathbb R^d</span><span class="number">(13)</span></div>
+<p>where 𝐺 is the number of accelerators, and q∗ₜis the fast component from accelerator 𝑔. This uses an all-gather or all-reduce average as already explained. Finally, the parameters, x𝑡, are updated as per:</p>
+<div class="equation"><span class="math" data-tex="\mathbf x_{t+1}=\mathbf x_t-\eta\mathbf Q_t,\qquad\mathbf x_{t+1}\in\mathbb R^d">\mathbf x_{t+1}=\mathbf x_t-\eta\mathbf Q_t,\qquad\mathbf x_{t+1}\in\mathbb R^d</span><span class="number">(14)</span></div>
+<p>This constitutes one backpropagation step. This is repeated until model convergence or an acceptable error rate is attained.</p>
+</section>
+<section id="conclusion"><h2><span>05</span>Conclusion</h2>
+<p>I hope that after reading this article, you can better understand the original paper by Nous Research. One interesting application of the way the DCT is used in this paper to reduce communication overhead could be in embedded machine learning, especially the training of neural networks under limited compute. The DCT could instead be used to reduce storage and computational requirements by applying lossy compression to the momentum (or gradient) tensor and make the training process much more efficient on embedded systems!</p>
+</section>
+<section id="references"><h2>References</h2><ol>
+<li>Nasir Ahmed, T. Natarajan, and K. R. Rao. Discrete cosine transform. IEEE Transactions on Computers, C-23(1):90–93, 1974.</li>
+<li>Léon Bottou, Frank E. Curtis, and Jorge Nocedal. Optimization methods for large-scale machine learning. SIAM Review, 60(2):223–311, 2018. Comprehensive review of stochastic gradient-based optimization including SGD and momentum for ML applications.</li>
+<li>Ian Goodfellow, Yoshua Bengio, and Aaron Courville. Deep Learning. MIT Press, 2016.</li>
+<li>Ian Jolliffe. Principal component analysis. Springer Series in Statistics, 2002.</li>
+<li>Michel Loève. Probability Theory I. Springer, 1977.</li>
+<li>Bowen Peng, Jeffrey Quesnelle, and Diederik P. Kingma. Demo: Decoupled momentum optimization, 2024.</li>
+<li>Herbert Robbins and Sutton Monro. A stochastic approximation method. The Annals of Mathematical Statistics, 22(3):400–407, 1951.</li>
+<li>Gilbert Strang. Introduction to Linear Algebra. Wellesley-Cambridge Press, 6th edition, 2021.</li>
+</ol></section>
+        <footer><span>DEMO · AN EXPLAINER</span><a href="#top">Back to top ↑</a></footer>
+      </article>
+    </main>
+  </div>
+</body>
+</html>
